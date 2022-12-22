@@ -106,9 +106,7 @@ pub fn as_16_bit(r: isize, g: isize, b: isize) -> u16 {
 
 pub fn lerp13(a: isize, b: isize, rounding: Rounding) -> isize {
     match rounding {
-        Rounding::Biased => a + mul_8_bit(b-a, 0x55),
-        Rounding::Unbiased => (2*a + b) / 3,
+        Rounding::Biased => a + mul_8_bit(b - a, 0x55),
+        Rounding::Unbiased => (2 * a + b) / 3,
     }
-
 }
-
