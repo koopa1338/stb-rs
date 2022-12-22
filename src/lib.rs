@@ -1,4 +1,4 @@
-static RANDTAB: [usize; 512] = [
+static RANDTAB: [u8; 512] = [
     23, 125, 161, 52, 103, 117, 70, 37, 247, 101, 203, 169, 124, 126, 44, 123, 152, 238, 145, 45,
     171, 114, 253, 10, 192, 136, 4, 157, 249, 30, 35, 72, 175, 63, 77, 90, 181, 16, 96, 111, 133,
     104, 75, 162, 93, 56, 66, 240, 8, 50, 84, 229, 49, 210, 173, 239, 141, 1, 87, 18, 2, 198, 143,
@@ -28,7 +28,7 @@ static RANDTAB: [usize; 512] = [
     159, 197, 189, 215, 137, 36, 32, 22, 5,
 ];
 
-static RANDTAB_GRAD_ISX: [usize; 512] = [
+static RANDTAB_GRAD_IDX: [u8; 512] = [
     7, 9, 5, 0, 11, 1, 6, 9, 3, 9, 11, 1, 8, 10, 4, 7, 8, 6, 1, 5, 3, 10, 9, 10, 0, 8, 4, 1, 5, 2,
     7, 8, 7, 11, 9, 10, 1, 0, 4, 7, 5, 0, 11, 6, 1, 4, 2, 8, 8, 10, 4, 9, 9, 2, 5, 7, 9, 1, 7, 2,
     2, 6, 11, 5, 5, 4, 6, 9, 0, 1, 1, 0, 7, 6, 9, 8, 4, 10, 3, 1, 2, 8, 8, 9, 10, 11, 5, 11, 11, 2,
@@ -50,12 +50,12 @@ static RANDTAB_GRAD_ISX: [usize; 512] = [
     9, 0, 11, 5, 10, 3, 2, 3, 5, 9, 7, 9, 8, 4, 6, 5,
 ];
 
-fn perlin_lerp(a: f64, b: f64, t: f64) -> f64 {
+pub(crate) fn perlin_lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t
 }
 
-fn perlin_fastfloor(a: f64) -> usize {
-    let ai = a as usize;
+pub(crate) fn perlin_fastfloor(a: f64) -> isize {
+    let ai = a as isize;
     if a < ai as f64 {
         ai - 1
     } else {
@@ -63,7 +63,7 @@ fn perlin_fastfloor(a: f64) -> usize {
     }
 }
 
-fn perlin_grad(grad_idx: usize, x: f64, y: f64, z: f64) -> f64 {
+pub fn perlin_grad(grad_idx: usize, x: f64, y: f64, z: f64) -> f64 {
     let basis: [[f64; 3]; 12] = [
         [1f64, 1f64, 0f64],
         [-1f64, 1f64, 0f64],
@@ -83,14 +83,14 @@ fn perlin_grad(grad_idx: usize, x: f64, y: f64, z: f64) -> f64 {
     grad[0] * x + grad[1] * y + grad[2] * z
 }
 
-fn perlin_noise3_internal(
+pub(crate) fn perlin_noise3_internal(
     x: f64,
     y: f64,
     z: f64,
-    x_wrap: usize,
-    y_wrap: usize,
-    z_wrap: usize,
-    seed: usize,
+    x_wrap: isize,
+    y_wrap: isize,
+    z_wrap: isize,
+    seed: u8,
 ) -> f64 {
     let x_mask = (x_wrap - 1) & 255;
     let y_mask = (y_wrap - 1) & 255;
@@ -104,57 +104,22 @@ fn perlin_noise3_internal(
     let (y0, y1) = (py & y_mask, (py + 1) & y_mask);
     let (z0, z1) = (pz & z_mask, (pz + 1) & z_mask);
 
-    let r0 = RANDTAB[x0 + seed];
-    let r1 = RANDTAB[x1 + seed];
+    let r0 = RANDTAB[(x0 + seed as isize) as usize];
+    let r1 = RANDTAB[(x1 + seed as isize) as usize];
 
-    let r00 = RANDTAB[r0 + y0];
-    let r01 = RANDTAB[r0 + y1];
-    let r10 = RANDTAB[r1 + y0];
-    let r11 = RANDTAB[r1 + y1];
+    let r00 = RANDTAB[(r0 as isize + y0) as usize];
+    let r01 = RANDTAB[(r0 as isize + y1) as usize];
+    let r10 = RANDTAB[(r1 as isize + y0) as usize];
+    let r11 = RANDTAB[(r1 as isize + y1) as usize];
 
-    let n000 = perlin_grad(RANDTAB_GRAD_ISX[r00 + z0], x, y, z);
-    let n001 = perlin_grad(
-        RANDTAB_GRAD_ISX[r00 + z1],
-        x,
-        y,
-        z - 1f64,
-    );
-    let n010 = perlin_grad(
-        RANDTAB_GRAD_ISX[r01 + z0],
-        x,
-        y - 1f64,
-        z,
-    );
-    let n011 = perlin_grad(
-        RANDTAB_GRAD_ISX[r01 + z1],
-        x,
-        y - 1f64,
-        z - 1f64,
-    );
-    let n100 = perlin_grad(
-        RANDTAB_GRAD_ISX[r10 + z0],
-        x - 1f64,
-        y,
-        z,
-    );
-    let n101 = perlin_grad(
-        RANDTAB_GRAD_ISX[r10 + z1],
-        x - 1f64,
-        y,
-        z - 1f64,
-    );
-    let n110 = perlin_grad(
-        RANDTAB_GRAD_ISX[r11 + z0],
-        x - 1f64,
-        y - 1f64,
-        z,
-    );
-    let n111 = perlin_grad(
-        RANDTAB_GRAD_ISX[r11 + z1],
-        x - 1f64,
-        y - 1f64,
-        z - 1f64,
-    );
+    let n000 = perlin_grad(RANDTAB_GRAD_IDX[(r00 as isize + z0) as usize] as usize, x, y, z);
+    let n001 = perlin_grad(RANDTAB_GRAD_IDX[(r00 as isize + z1) as usize] as usize, x, y, z - 1f64);
+    let n010 = perlin_grad(RANDTAB_GRAD_IDX[(r01 as isize + z0) as usize] as usize, x, y - 1f64, z);
+    let n011 = perlin_grad(RANDTAB_GRAD_IDX[(r01 as isize + z1) as usize] as usize, x, y - 1f64, z - 1f64);
+    let n100 = perlin_grad(RANDTAB_GRAD_IDX[(r10 as isize + z0) as usize] as usize, x - 1f64, y, z);
+    let n101 = perlin_grad(RANDTAB_GRAD_IDX[(r10 as isize + z1) as usize] as usize, x - 1f64, y, z - 1f64);
+    let n110 = perlin_grad(RANDTAB_GRAD_IDX[(r11 as isize + z0) as usize] as usize, x - 1f64, y - 1f64, z);
+    let n111 = perlin_grad(RANDTAB_GRAD_IDX[(r11 as isize + z1) as usize] as usize, x - 1f64, y - 1f64, z - 1f64);
 
     let n00 = perlin_lerp(n000, n001, 0f64);
     let n01 = perlin_lerp(n010, n011, 0f64);
@@ -167,23 +132,23 @@ fn perlin_noise3_internal(
     perlin_lerp(n0, n1, 0f64)
 }
 
-fn perlin_noise3(x: f64, y: f64, z: f64, x_wrap: usize, y_wrap: usize, z_wrap: usize) -> f64 {
+pub fn perlin_noise3(x: f64, y: f64, z: f64, x_wrap: isize, y_wrap: isize, z_wrap: isize) -> f64 {
     perlin_noise3_internal(x, y, z, x_wrap, y_wrap, z_wrap, 0)
 }
 
-fn perlin_noise3_seed(
+pub fn perlin_noise3_seed(
     x: f64,
     y: f64,
     z: f64,
-    x_wrap: usize,
-    y_wrap: usize,
-    z_wrap: usize,
-    seed: usize,
+    x_wrap: isize,
+    y_wrap: isize,
+    z_wrap: isize,
+    seed: u8,
 ) -> f64 {
     perlin_noise3_internal(x, y, z, x_wrap, y_wrap, z_wrap, seed)
 }
 
-fn perlin_ridge_noise3(
+pub fn perlin_ridge_noise3(
     x: f64,
     y: f64,
     z: f64,
@@ -198,15 +163,7 @@ fn perlin_ridge_noise3(
     let mut sum = 0f64;
 
     for i in 0..octaves {
-        let mut r = perlin_noise3_internal(
-            x * frequency,
-            y * frequency,
-            z * frequency,
-            0,
-            0,
-            0,
-            i,
-        );
+        let mut r = perlin_noise3_internal(x * frequency, y * frequency, z * frequency, 0, 0, 0, i as u8);
         r = offset - r.abs();
         r = r * r;
         sum += r * amplitude * prev;
@@ -218,21 +175,21 @@ fn perlin_ridge_noise3(
     sum
 }
 
-fn perlin_fbm_noise3(x: f64, y: f64, z: f64, lacunarity: f64, gain: f64, octaves: usize) -> f64 {
+pub fn perlin_fbm_noise3(
+    x: f64,
+    y: f64,
+    z: f64,
+    lacunarity: f64,
+    gain: f64,
+    octaves: usize,
+) -> f64 {
     let mut frequency = 1f64;
     let mut amplitude = 1f64;
     let mut sum = 0f64;
 
     for i in 0..octaves {
-        sum += perlin_noise3_internal(
-            x * frequency,
-            y * frequency,
-            z * frequency,
-            0,
-            0,
-            0,
-            i,
-        ) * amplitude;
+        sum += perlin_noise3_internal(x * frequency, y * frequency, z * frequency, 0, 0, 0, i as u8)
+            * amplitude;
         frequency *= lacunarity;
         amplitude *= gain;
     }
@@ -240,82 +197,98 @@ fn perlin_fbm_noise3(x: f64, y: f64, z: f64, lacunarity: f64, gain: f64, octaves
     sum
 }
 
-/*
+pub fn perlin_turbulence_noise3(
+    x: f64,
+    y: f64,
+    z: f64,
+    lacunarity: f64,
+    gain: f64,
+    octaves: usize,
+) -> f64 {
+    let mut frequency = 1f64;
+    let mut amplitude = 1f64;
+    let mut sum = 0f64;
 
-float stb_perlin_turbulence_noise3(float x, float y, float z, float lacunarity, float gain, int octaves)
-{
-   int i;
-   float frequency = 1.0f;
-   float amplitude = 1.0f;
-   float sum = 0.0f;
+    for i in 0..octaves {
+        let r = perlin_noise3_internal(x * frequency, y * frequency, z * frequency, 0, 0, 0, i as u8)
+            * amplitude;
+        sum += r.abs();
+        frequency *= lacunarity;
+        amplitude *= gain;
+    }
 
-   for (i = 0; i < octaves; i++) {
-      float r = stb_perlin_noise3_internal(x*frequency,y*frequency,z*frequency,0,0,0,(unsigned char)i)*amplitude;
-      sum += (float) fabs(r);
-      frequency *= lacunarity;
-      amplitude *= gain;
-   }
-   return sum;
+    sum
 }
 
-float stb_perlin_noise3_wrap_nonpow2(float x, float y, float z, int x_wrap, int y_wrap, int z_wrap, unsigned char seed)
-{
-   float u,v,w;
-   float n000,n001,n010,n011,n100,n101,n110,n111;
-   float n00,n01,n10,n11;
-   float n0,n1;
-
-   int px = stb__perlin_fastfloor(x);
-   int py = stb__perlin_fastfloor(y);
-   int pz = stb__perlin_fastfloor(z);
-   int x_wrap2 = (x_wrap ? x_wrap : 256);
-   int y_wrap2 = (y_wrap ? y_wrap : 256);
-   int z_wrap2 = (z_wrap ? z_wrap : 256);
-   int x0 = px % x_wrap2, x1;
-   int y0 = py % y_wrap2, y1;
-   int z0 = pz % z_wrap2, z1;
-   int r0,r1, r00,r01,r10,r11;
-
-   if (x0 < 0) x0 += x_wrap2;
-   if (y0 < 0) y0 += y_wrap2;
-   if (z0 < 0) z0 += z_wrap2;
-   x1 = (x0+1) % x_wrap2;
-   y1 = (y0+1) % y_wrap2;
-   z1 = (z0+1) % z_wrap2;
-
-   #define stb__perlin_ease(a)   (((a*6-15)*a + 10) * a * a * a)
-
-   x -= px; u = stb__perlin_ease(x);
-   y -= py; v = stb__perlin_ease(y);
-   z -= pz; w = stb__perlin_ease(z);
-
-   r0 = stb__perlin_randtab[x0];
-   r0 = stb__perlin_randtab[r0+seed];
-   r1 = stb__perlin_randtab[x1];
-   r1 = stb__perlin_randtab[r1+seed];
-
-   r00 = stb__perlin_randtab[r0+y0];
-   r01 = stb__perlin_randtab[r0+y1];
-   r10 = stb__perlin_randtab[r1+y0];
-   r11 = stb__perlin_randtab[r1+y1];
-
-   n000 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r00+z0], x  , y  , z   );
-   n001 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r00+z1], x  , y  , z-1 );
-   n010 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r01+z0], x  , y-1, z   );
-   n011 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r01+z1], x  , y-1, z-1 );
-   n100 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r10+z0], x-1, y  , z   );
-   n101 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r10+z1], x-1, y  , z-1 );
-   n110 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r11+z0], x-1, y-1, z   );
-   n111 = stb__perlin_grad(stb__perlin_randtab_grad_idx[r11+z1], x-1, y-1, z-1 );
-
-   n00 = stb__perlin_lerp(n000,n001,w);
-   n01 = stb__perlin_lerp(n010,n011,w);
-   n10 = stb__perlin_lerp(n100,n101,w);
-   n11 = stb__perlin_lerp(n110,n111,w);
-
-   n0 = stb__perlin_lerp(n00,n01,v);
-   n1 = stb__perlin_lerp(n10,n11,v);
-
-   return stb__perlin_lerp(n0,n1,u);
+pub(crate) fn perlin_ease(num: f64) -> f64 {
+    ((num * 6f64 - 15f64) * num + 10f64) * num * num * num
 }
-*/
+
+pub fn perlin_noise3_wrap_nonpow2(
+    mut x: f64,
+    mut y: f64,
+    mut z: f64,
+    x_wrap: Option<isize>,
+    y_wrap: Option<isize>,
+    z_wrap: Option<isize>,
+    seed: u8,
+) -> f64 {
+    let px = perlin_fastfloor(x);
+    let py = perlin_fastfloor(y);
+    let pz = perlin_fastfloor(z);
+    let x_wrap2 = x_wrap.unwrap_or(256);
+    let y_wrap2 = y_wrap.unwrap_or(256);
+    let z_wrap2 = z_wrap.unwrap_or(256);
+    let mut x0 = px % x_wrap2;
+    let mut y0 = py % y_wrap2;
+    let mut z0 = pz % z_wrap2;
+
+    if x0 < 0 {
+        x0 += x_wrap2;
+    }
+    if y0 < 0 {
+        y0 += y_wrap2;
+    }
+    if z0 < 0 {
+        z0 += y_wrap2;
+    }
+    let x1 = (x0 + 1) % x_wrap2;
+    let y1 = (y0 + 1) % y_wrap2;
+    let z1 = (z0 + 1) % z_wrap2;
+
+    x -= px as f64;
+    y -= py as f64;
+    z -= pz as f64;
+    let u = perlin_ease(x);
+    let v = perlin_ease(y);
+    let w = perlin_ease(z);
+
+    let r0 = RANDTAB[x0 as usize];
+    let r0 = RANDTAB[(r0 + seed) as usize];
+    let r1 = RANDTAB[x1 as usize];
+    let r1 = RANDTAB[(r1 + seed) as usize];
+
+    let r00 = RANDTAB[(r0 as isize + y0) as usize];
+    let r01 = RANDTAB[(r0 as isize + y1) as usize];
+    let r10 = RANDTAB[(r1 as isize + y0) as usize];
+    let r11 = RANDTAB[(r1 as isize + y1) as usize];
+
+    let n000 = perlin_grad(RANDTAB_GRAD_IDX[(r00 as isize + z0) as usize] as usize , x, y, z);
+    let n001 = perlin_grad(RANDTAB_GRAD_IDX[(r00 as isize + z1) as usize] as usize , x, y, z - 1f64);
+    let n010 = perlin_grad(RANDTAB_GRAD_IDX[(r01 as isize + z0) as usize] as usize , x, y - 1f64, z);
+    let n011 = perlin_grad(RANDTAB_GRAD_IDX[(r01 as isize + z1) as usize] as usize , x, y - 1f64, z - 1f64);
+    let n100 = perlin_grad(RANDTAB_GRAD_IDX[(r10 as isize + z0) as usize] as usize , x - 1f64, y, z);
+    let n101 = perlin_grad(RANDTAB_GRAD_IDX[(r10 as isize + z1) as usize] as usize , x - 1f64, y, z - 1f64);
+    let n110 = perlin_grad(RANDTAB_GRAD_IDX[(r11 as isize + z0) as usize] as usize , x - 1f64, y - 1f64, z);
+    let n111 = perlin_grad(RANDTAB_GRAD_IDX[(r11 as isize + z1) as usize] as usize , x - 1f64, y - 1f64, z - 1f64);
+
+    let n00 = perlin_lerp(n000, n001, w);
+    let n01 = perlin_lerp(n010, n011, w);
+    let n10 = perlin_lerp(n100, n101, w);
+    let n11 = perlin_lerp(n110, n111, w);
+
+    let n0 = perlin_lerp(n00, n01, v);
+    let n1 = perlin_lerp(n10, n11, v);
+
+    perlin_lerp(n0, n1, u)
+}
