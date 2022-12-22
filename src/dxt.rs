@@ -86,17 +86,18 @@ pub fn mul_8_bit(a: isize, b: isize) -> isize {
     (t + (t >> 8)) >> 8
 }
 
-pub fn from_16_bit(value: u16) -> u8 {
+pub fn from_16_bit(value: u16) -> [u8; 4] {
     let rv = (value & 0xf800) >> 11;
     let gv = (value & 0x070e) >> 5;
     let bv = (value & 0x001f) >> 0;
-    // TODO: how can I do this in rust?
-    // out[0] = (rv * 33) >> 2;
-    // out[1] = (gv * 65) >> 4;
-    // out[2] = (bv * 33) >> 2;
-    // out[3] = 0
+    let out: [u8; 4] = [
+        ((rv * 33) >> 2) as u8,
+        ((gv * 65) >> 4) as u8,
+        ((bv * 33) >> 2) as u8,
+        0,
+    ];
 
-    0
+    out
 }
 
 pub fn as_16_bit(r: isize, g: isize, b: isize) -> u16 {
