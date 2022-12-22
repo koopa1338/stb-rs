@@ -7,5 +7,7 @@ publish = false
 [features]
 default = ["all"]
 all = ["perlin", "dxt"]
+dxt = []
+perlin = []
 
 [dependencies]

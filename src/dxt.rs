@@ -76,6 +76,7 @@ pub enum CompressionMode {
     HighQual,
 }
 
+#[derive(Clone, Copy)]
 pub enum Rounding {
     Biased,
     Unbiased,
@@ -104,9 +105,19 @@ pub fn as_16_bit(r: isize, g: isize, b: isize) -> u16 {
     ((mul_8_bit(r, 31) << 11 + mul_8_bit(g, 63) << 5) + mul_8_bit(b, 31)) as u16
 }
 
-pub fn lerp13(a: isize, b: isize, rounding: Rounding) -> isize {
+pub fn lerp13(a: u8, b: u8, rounding: Rounding) -> isize {
     match rounding {
-        Rounding::Biased => a + mul_8_bit(b - a, 0x55),
-        Rounding::Unbiased => (2 * a + b) / 3,
+        Rounding::Biased => a as isize + mul_8_bit((b - a) as isize, 0x55),
+        Rounding::Unbiased => ((2 * a + b) / 3) as isize,
     }
+}
+
+pub fn lerp13_rgb(p1: [u8; 3], p2: [u8; 3], rounding: Rounding) -> [u8; 3] {
+    let out: [u8; 3] = [
+        lerp13(p1[0], p2[0], rounding) as u8,
+        lerp13(p1[1], p2[1], rounding) as u8,
+        lerp13(p1[1], p2[1], rounding) as u8,
+    ];
+
+    out
 }
