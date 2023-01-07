@@ -87,18 +87,15 @@ pub fn mul_8_bit(a: isize, b: isize) -> isize {
     (t + (t >> 8)) >> 8
 }
 
-pub fn from_16_bit(value: u16) -> [u8; 4] {
+pub fn from_16_bit(data: &mut [u8], value: u16) {
+    debug_assert!(data.len() >= 4);
     let rv = (value & 0xf800) >> 11;
     let gv = (value & 0x070e) >> 5;
     let bv = (value & 0x001f) >> 0;
-    let out: [u8; 4] = [
-        ((rv * 33) >> 2) as u8,
-        ((gv * 65) >> 4) as u8,
-        ((bv * 33) >> 2) as u8,
-        0,
-    ];
-
-    out
+    data[0] = ((rv * 33) >> 2) as u8;
+    data[1] = ((gv * 65) >> 4) as u8;
+    data[2] = ((bv * 33) >> 2) as u8;
+    data[3] = 0;
 }
 
 pub fn as_16_bit(r: isize, g: isize, b: isize) -> u16 {
@@ -112,12 +109,30 @@ pub fn lerp13(a: u8, b: u8, rounding: Rounding) -> isize {
     }
 }
 
-pub fn lerp13_rgb(p1: [u8; 3], p2: [u8; 3], rounding: Rounding) -> [u8; 3] {
-    let out: [u8; 3] = [
-        lerp13(p1[0], p2[0], rounding) as u8,
-        lerp13(p1[1], p2[1], rounding) as u8,
-        lerp13(p1[1], p2[1], rounding) as u8,
-    ];
+pub fn lerp13_rgb(data: &mut [u8], p1: &[u8], p2: &[u8], rounding: Rounding) {
+    debug_assert!(data.len() >= 3);
+    debug_assert!(p1.len() >= 2);
+    debug_assert!(p2.len() >= 2);
+    data[0] = lerp13(p1[0], p2[0], rounding) as u8;
+    data[1] = lerp13(p1[1], p2[1], rounding) as u8;
+    data[2] = lerp13(p1[1], p2[1], rounding) as u8;
+}
 
-    out
+pub fn eval_colors(color: &[u8; 16], c0: u16, c1: u16, rounding: Rounding) {
+    let c: &mut [u8] = &mut [];
+    c.copy_from_slice(&color[..]);
+
+    let c_offset_4: &mut [u8] = &mut [];
+    c_offset_4.copy_from_slice(&color[4..]);
+
+    let c_offset_8: &mut [u8] = &mut [];
+    c_offset_8.copy_from_slice(&color[8..]);
+
+    let c_offset_12: &mut [u8] = &mut [];
+    c_offset_12.copy_from_slice(&color[12..]);
+
+    from_16_bit(c, c0);
+    from_16_bit(c_offset_4, c1);
+    lerp13_rgb(c_offset_8, c, c_offset_4, rounding);
+    lerp13_rgb(c_offset_12, c_offset_4, c, rounding);
 }
