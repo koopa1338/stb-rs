@@ -87,8 +87,7 @@ pub fn mul_8_bit(a: isize, b: isize) -> isize {
     (t + (t >> 8)) >> 8
 }
 
-pub fn from_16_bit(data: &mut [u8], value: u16) {
-    debug_assert!(data.len() >= 4);
+pub fn from_16_bit(data: &mut [u8; 4], value: u16) {
     let rv = (value & 0xf800) >> 11;
     let gv = (value & 0x070e) >> 5;
     let bv = (value & 0x001f) >> 0;
@@ -109,30 +108,25 @@ pub fn lerp13(a: u8, b: u8, rounding: Rounding) -> isize {
     }
 }
 
-pub fn lerp13_rgb(data: &mut [u8], p1: &[u8], p2: &[u8], rounding: Rounding) {
-    debug_assert!(data.len() >= 3);
-    debug_assert!(p1.len() >= 2);
-    debug_assert!(p2.len() >= 2);
+pub fn lerp13_rgb(data: &mut [u8; 3], p1: &[u8; 2], p2: &[u8; 2], rounding: Rounding) {
     data[0] = lerp13(p1[0], p2[0], rounding) as u8;
     data[1] = lerp13(p1[1], p2[1], rounding) as u8;
     data[2] = lerp13(p1[1], p2[1], rounding) as u8;
 }
 
 pub fn eval_colors(color: &[u8; 16], c0: u16, c1: u16, rounding: Rounding) {
-    let c: &mut [u8] = &mut [];
-    c.copy_from_slice(&color[..]);
+    // these unwraps are ok as we hardcode the slice ranges and control the len of the slice we
+    // pass to the `try_from` function. This cannot file by misusing this function.
 
-    let c_offset_4: &mut [u8] = &mut [];
-    c_offset_4.copy_from_slice(&color[4..]);
+    let mut c2 = <[u8; 2]>::try_from(&color[..2]).unwrap();
+    let mut c2_offset_4 = <[u8; 2]>::try_from(&color[4..6]).unwrap();
+    let mut c3_offset_8 = <[u8; 3]>::try_from(&color[8..11]).unwrap();
+    let mut c3_offset_12 = <[u8; 3]>::try_from(&color[12..15]).unwrap();
+    let mut c4 = <[u8; 4]>::try_from(&color[..4]).unwrap();
+    let mut c4_offset_4 = <[u8; 4]>::try_from(&color[4..8]).unwrap();
 
-    let c_offset_8: &mut [u8] = &mut [];
-    c_offset_8.copy_from_slice(&color[8..]);
-
-    let c_offset_12: &mut [u8] = &mut [];
-    c_offset_12.copy_from_slice(&color[12..]);
-
-    from_16_bit(c, c0);
-    from_16_bit(c_offset_4, c1);
-    lerp13_rgb(c_offset_8, c, c_offset_4, rounding);
-    lerp13_rgb(c_offset_12, c_offset_4, c, rounding);
+    from_16_bit(&mut c4, c0);
+    from_16_bit(&mut c4_offset_4, c1);
+    lerp13_rgb(&mut c3_offset_8, &mut c2, &mut c2_offset_4, rounding);
+    lerp13_rgb(&mut c3_offset_12, &mut c2_offset_4, &mut c2, rounding);
 }
