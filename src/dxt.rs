@@ -70,6 +70,23 @@ static OMATCH_6: [(u8, u8); 256] = [
    (61, 62), (62, 61), (62, 62), (62, 62), (62, 63), (63, 62), (63, 63), (63, 63),
 ];
 
+static MIDPOINTS5: [f64; 32] = [
+    0.015686, 0.047059, 0.078431, 0.111765, 0.145098, 0.176471, 0.207843, 0.241176, 0.274510,
+    0.305882, 0.337255, 0.370588, 0.403922, 0.435294, 0.466667, 0.5, 0.533333, 0.564706, 0.596078,
+    0.629412, 0.662745, 0.694118, 0.725490, 0.758824, 0.792157, 0.823529, 0.854902, 0.888235,
+    0.921569, 0.952941, 0.984314, 1.0,
+];
+
+static MIDPOINTS6: [f64; 64] = [
+    0.007843, 0.023529, 0.039216, 0.054902, 0.070588, 0.086275, 0.101961, 0.117647, 0.133333,
+    0.149020, 0.164706, 0.180392, 0.196078, 0.211765, 0.227451, 0.245098, 0.262745, 0.278431,
+    0.294118, 0.309804, 0.325490, 0.341176, 0.356863, 0.372549, 0.388235, 0.403922, 0.419608,
+    0.435294, 0.450980, 0.466667, 0.482353, 0.500000, 0.517647, 0.533333, 0.549020, 0.564706,
+    0.580392, 0.596078, 0.611765, 0.627451, 0.643137, 0.658824, 0.674510, 0.690196, 0.705882,
+    0.721569, 0.737255, 0.754902, 0.772549, 0.788235, 0.803922, 0.819608, 0.835294, 0.850980,
+    0.866667, 0.882353, 0.898039, 0.913725, 0.929412, 0.945098, 0.960784, 0.976471, 0.992157, 1.0,
+];
+
 pub enum CompressionMode {
     Normal,
     Dither,
@@ -129,4 +146,66 @@ pub fn eval_colors(color: &[u8; 16], c0: u16, c1: u16, rounding: Rounding) {
     from_16_bit(&mut c4_offset_4, c1);
     lerp13_rgb(&mut c3_offset_8, &mut c2, &mut c2_offset_4, rounding);
     lerp13_rgb(&mut c3_offset_12, &mut c2_offset_4, &mut c2, rounding);
+}
+
+pub fn match_colors_block(block: &[u8; 63], color: &[u8; 7]) -> usize {
+    let dirr = color[0] - color[4];
+    let dirg = color[1] - color[5];
+    let dirb = color[2] - color[6];
+    let mut dots = [0; 16];
+    let mut stops = [0; 4];
+    for i in 0..16 {
+        let idx = i * 4;
+        dots[i] = block[idx] * dirr + block[idx + 1] * dirg + block[idx + 2] * dirb;
+    }
+
+    for i in 0..4 {
+        let idx = i * 4;
+        stops[i] = block[idx] * dirr + block[idx + 1] * dirg + block[idx + 2] * dirb;
+    }
+
+    let c0_point = (stops[1] + stops[3]) as usize;
+    let half_point = (stops[3] + stops[2]) as usize;
+    let c3_point = (stops[2] + stops[0]) as usize;
+
+    let mut mask = 0;
+    for i in (0..15).into_iter().rev() {
+        let dot = dots[i] as usize * 2;
+        mask = mask << 2;
+        if dot < half_point {
+            if dot < c0_point {
+                mask = mask | 1;
+            } else {
+                mask = mask | 3;
+            }
+        } else {
+            if dot < c3_point {
+                mask = mask | 2;
+            } else {
+                mask = mask | 0;
+            }
+        }
+    }
+
+    mask
+}
+
+pub fn quantize5(x: f64) -> u16 {
+    let x = x.clamp(0.0, 1.0);
+    let mut q = (x * 31.0) as u16;
+    if x > MIDPOINTS5[q as usize] {
+        q += 1;
+    }
+
+    q
+}
+
+pub fn quantize6(x: f64) -> u16 {
+    let x = x.clamp(0.0, 1.0);
+    let mut q = (x * 63.0) as u16;
+    if x > MIDPOINTS6[q as usize] {
+        q += 1;
+    }
+
+    q
 }
