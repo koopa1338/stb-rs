@@ -209,3 +209,81 @@ pub fn quantize6(x: f64) -> u16 {
 
     q
 }
+
+pub fn refine_block(block: &[u8; 67], pmax16: u16, pmin16: u16, mask: usize) -> bool {
+    const W1TAB: [usize; 4] = [3, 0, 2, 1];
+    const PROD: [usize; 4] = [0x90000, 0x000900, 0x040102, 0x010402];
+
+    #[allow(unused_assignments)]
+    let mut min16: u16 = 0;
+    #[allow(unused_assignments)]
+    let mut max16: u16 = 0;
+
+    let mut cm = mask;
+
+    if (mask ^ (mask << 2)) < 4 {
+        let mut r = 8;
+        let mut b = 8;
+        let mut g = 8;
+
+        for i in 0..16 {
+            r += block[i * 4];
+            g += block[i * 4 + 1];
+            b += block[i * 4 + 2];
+        }
+
+        r >>= 4;
+        g >>= 4;
+        b >>= 4;
+
+        max16 =
+            (OMATCH_5[r as usize].0 << 11) | (OMATCH_6[g as usize].0 << 5) | OMATCH_5[b as usize].0;
+        min16 =
+            (OMATCH_5[r as usize].1 << 11) | (OMATCH_6[g as usize].1 << 5) | OMATCH_5[b as usize].1;
+    } else {
+        let mut at1_r = 0;
+        let mut at1_g = 0;
+        let mut at1_b = 0;
+        let mut at2_r = 0;
+        let mut at2_g = 0;
+        let mut at2_b = 0;
+        let mut akku = 0;
+        for i in 0..16 {
+            cm >>= 2;
+            let step = cm & 3;
+            let w1 = W1TAB[step];
+            let r = block[i * 4];
+            let g = block[i * 4 + 1];
+            let b = block[i * 4 + 2];
+
+            akku += PROD[step];
+
+            at1_r += w1 * r as usize;
+            at1_g += w1 * g as usize;
+            at1_b += w1 * b as usize;
+            at2_r += r as usize;
+            at2_g += g as usize;
+            at2_b += b as usize;
+        }
+
+        at2_r = 3 * at2_r - at1_r;
+        at2_g = 3 * at2_g - at1_g;
+        at2_b = 3 * at2_b - at1_b;
+
+        let xx = akku >> 16;
+        let yy = (akku >> 8) & 0xff;
+        let xy = akku & 0xff;
+
+        let f = 3f64 / 255f64 / (xx * yy - xy * xy) as f64;
+
+        max16 = quantize5((at1_r * yy - at2_r * xy) as f64 * f) << 11;
+        max16 |= quantize6((at1_g * yy - at2_g * xy) as f64 * f) << 5;
+        max16 |= quantize5((at1_b * yy - at2_b * xy) as f64 * f);
+
+        min16 = quantize5((at2_r * xx - at1_r * xy) as f64 * f) << 11;
+        min16 |= quantize6((at2_g * xx - at1_g * xy) as f64 * f) << 5;
+        min16 |= quantize5((at2_b * xx - at1_b * xy) as f64 * f);
+    }
+
+    pmin16 != min16 || pmax16 != max16
+}
