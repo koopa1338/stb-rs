@@ -1,5 +1,5 @@
 #[rustfmt::skip]
-static OMATCH_5: [(u8, u8); 256] = [
+static OMATCH_5: [(u16, u16); 256] = [
    ( 0,  0), ( 0,  0), ( 0,  1), ( 0,  1), ( 1,  0), ( 1,  0), ( 1,  0), ( 1,  1),
    ( 1,  1), ( 1,  1), ( 1,  2), ( 0,  4), ( 2,  1), ( 2,  1), ( 2,  1), ( 2,  2),
    ( 2,  2), ( 2,  2), ( 2,  3), ( 1,  5), ( 3,  2), ( 3,  2), ( 4,  0), ( 3,  3),
@@ -35,7 +35,7 @@ static OMATCH_5: [(u8, u8); 256] = [
 ];
 
 #[rustfmt::skip]
-static OMATCH_6: [(u8, u8); 256] = [
+static OMATCH_6: [(u16, u16); 256] = [
    ( 0,  0), ( 0,  1), ( 1,  0), ( 1,  1), ( 1,  1), ( 1,  2), ( 2,  1), ( 2,  2),
    ( 2,  2), ( 2,  3), ( 3,  2), ( 3,  3), ( 3,  3), ( 3,  4), ( 4,  3), ( 4,  4),
    ( 4,  4), ( 4,  5), ( 5,  4), ( 5,  5), ( 5,  5), ( 5,  6), ( 6,  5), ( 6,  6),
@@ -107,7 +107,7 @@ pub fn mul_8_bit(a: isize, b: isize) -> isize {
 pub fn from_16_bit(data: &mut [u8; 4], value: u16) {
     let rv = (value & 0xf800) >> 11;
     let gv = (value & 0x070e) >> 5;
-    let bv = (value & 0x001f) >> 0;
+    let bv = value & 0x001f;
     data[0] = ((rv * 33) >> 2) as u8;
     data[1] = ((gv * 65) >> 4) as u8;
     data[2] = ((bv * 33) >> 2) as u8;
@@ -115,7 +115,11 @@ pub fn from_16_bit(data: &mut [u8; 4], value: u16) {
 }
 
 pub fn as_16_bit(r: isize, g: isize, b: isize) -> u16 {
-    ((mul_8_bit(r, 31) << 11 + mul_8_bit(g, 63) << 5) + mul_8_bit(b, 31)) as u16
+    let r = mul_8_bit(r, 31) << 11;
+    let g = mul_8_bit(g, 63) << 5;
+    let b = mul_8_bit(b, 31);
+
+    (r + g + b) as u16
 }
 
 pub fn lerp13(a: u8, b: u8, rounding: Rounding) -> isize {
@@ -135,8 +139,8 @@ pub fn eval_colors(color: &[u8; 16], c0: u16, c1: u16, rounding: Rounding) {
     // these unwraps are ok as we hardcode the slice ranges and control the len of the slice we
     // pass to the `try_from` function. This cannot file by misusing this function.
 
-    let mut c2 = <[u8; 2]>::try_from(&color[..2]).unwrap();
-    let mut c2_offset_4 = <[u8; 2]>::try_from(&color[4..6]).unwrap();
+    let c2 = <[u8; 2]>::try_from(&color[..2]).unwrap();
+    let c2_offset_4 = <[u8; 2]>::try_from(&color[4..6]).unwrap();
     let mut c3_offset_8 = <[u8; 3]>::try_from(&color[8..11]).unwrap();
     let mut c3_offset_12 = <[u8; 3]>::try_from(&color[12..15]).unwrap();
     let mut c4 = <[u8; 4]>::try_from(&color[..4]).unwrap();
@@ -144,8 +148,8 @@ pub fn eval_colors(color: &[u8; 16], c0: u16, c1: u16, rounding: Rounding) {
 
     from_16_bit(&mut c4, c0);
     from_16_bit(&mut c4_offset_4, c1);
-    lerp13_rgb(&mut c3_offset_8, &mut c2, &mut c2_offset_4, rounding);
-    lerp13_rgb(&mut c3_offset_12, &mut c2_offset_4, &mut c2, rounding);
+    lerp13_rgb(&mut c3_offset_8, &c2, &c2_offset_4, rounding);
+    lerp13_rgb(&mut c3_offset_12, &c2_offset_4, &c2, rounding);
 }
 
 pub fn match_colors_block(block: &[u8; 63], color: &[u8; 7]) -> usize {
@@ -154,14 +158,14 @@ pub fn match_colors_block(block: &[u8; 63], color: &[u8; 7]) -> usize {
     let dirb = color[2] - color[6];
     let mut dots = [0; 16];
     let mut stops = [0; 4];
-    for i in 0..16 {
+    for (i, dot) in dots.iter_mut().enumerate() {
         let idx = i * 4;
-        dots[i] = block[idx] * dirr + block[idx + 1] * dirg + block[idx + 2] * dirb;
+        *dot = block[idx] * dirr + block[idx + 1] * dirg + block[idx + 2] * dirb;
     }
 
-    for i in 0..4 {
+    for (i, stop) in stops.iter_mut().enumerate() {
         let idx = i * 4;
-        stops[i] = block[idx] * dirr + block[idx + 1] * dirg + block[idx + 2] * dirb;
+        *stop = block[idx] * dirr + block[idx + 1] * dirg + block[idx + 2] * dirb;
     }
 
     let c0_point = (stops[1] + stops[3]) as usize;
@@ -171,19 +175,15 @@ pub fn match_colors_block(block: &[u8; 63], color: &[u8; 7]) -> usize {
     let mut mask = 0;
     for i in (0..15).into_iter().rev() {
         let dot = dots[i] as usize * 2;
-        mask = mask << 2;
+        mask <<= 2;
         if dot < half_point {
             if dot < c0_point {
-                mask = mask | 1;
+                mask |= 1;
             } else {
-                mask = mask | 3;
+                mask |= 3;
             }
-        } else {
-            if dot < c3_point {
-                mask = mask | 2;
-            } else {
-                mask = mask | 0;
-            }
+        } else if dot < c3_point {
+            mask |= 2;
         }
     }
 
