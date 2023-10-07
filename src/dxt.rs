@@ -171,7 +171,7 @@ pub fn match_colors_block(block: &[u8; 63], color: &[u8; 7]) -> usize {
     let c3_point = (stops[2] + stops[0]) as usize;
 
     let mut mask = 0;
-    for i in (0..15).into_iter().rev() {
+    for i in (0..15).rev() {
         let dot = dots[i] as usize * 2;
         mask <<= 2;
         if dot < half_point {
