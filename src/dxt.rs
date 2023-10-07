@@ -136,15 +136,13 @@ pub fn lerp13_rgb(data: &mut [u8; 3], p1: &[u8; 2], p2: &[u8; 2], rounding: Roun
 }
 
 pub fn eval_colors(color: &[u8; 16], c0: u16, c1: u16, rounding: Rounding) {
-    // these unwraps are ok as we hardcode the slice ranges and control the len of the slice we
-    // pass to the `try_from` function. This cannot file by misusing this function.
-
-    let c2 = <[u8; 2]>::try_from(&color[..2]).unwrap();
-    let c2_offset_4 = <[u8; 2]>::try_from(&color[4..6]).unwrap();
-    let mut c3_offset_8 = <[u8; 3]>::try_from(&color[8..11]).unwrap();
-    let mut c3_offset_12 = <[u8; 3]>::try_from(&color[12..15]).unwrap();
-    let mut c4 = <[u8; 4]>::try_from(&color[..4]).unwrap();
-    let mut c4_offset_4 = <[u8; 4]>::try_from(&color[4..8]).unwrap();
+    // unwraps are ok here as the function signature only accepts a u8 array of the needed len
+    let c2: [u8; 2] = color[..2].try_into().unwrap();
+    let c2_offset_4: [u8; 2] = color[4..6].try_into().unwrap();
+    let mut c3_offset_8: [u8; 3] = color[8..11].try_into().unwrap();
+    let mut c3_offset_12: [u8; 3] = color[12..15].try_into().unwrap();
+    let mut c4: [u8; 4] = color[..4].try_into().unwrap();
+    let mut c4_offset_4: [u8; 4] = color[4..8].try_into().unwrap();
 
     from_16_bit(&mut c4, c0);
     from_16_bit(&mut c4_offset_4, c1);
